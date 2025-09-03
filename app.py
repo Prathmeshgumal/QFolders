@@ -48,6 +48,45 @@ def get_supabase_service() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
+def track_contribution(user_id: str, client: Client):
+    """Track a user contribution for the current date"""
+    try:
+        from datetime import date
+        today = date.today().isoformat()
+        
+        # Try to update existing contribution for today
+        result = client.table("contributions").update({
+            "contribution_count": client.table("contributions")
+                .select("contribution_count")
+                .eq("user_id", user_id)
+                .eq("contribution_date", today)
+                .single()
+                .execute()
+                .data["contribution_count"] + 1,
+            "updated_at": "now()"
+        }).eq("user_id", user_id).eq("contribution_date", today).execute()
+        
+        # If no existing record, create a new one
+        if not result.data:
+            client.table("contributions").insert({
+                "user_id": user_id,
+                "contribution_date": today,
+                "contribution_count": 1
+            }).execute()
+            
+    except Exception as e:
+        # If update failed, try to insert
+        try:
+            client.table("contributions").insert({
+                "user_id": user_id,
+                "contribution_date": today,
+                "contribution_count": 1
+            }).execute()
+        except Exception as e2:
+            print(f"Failed to track contribution: {e2}")
+            pass  # Don't break the main functionality
+
+
 def login_required(view_fn):
     @wraps(view_fn)
     def wrapper(*args, **kwargs):
@@ -278,6 +317,9 @@ def folder_detail(folder_id: str):
             # Insert question and get the ID
             result = client.table("questions").insert(question_data).execute()
             question_id = result.data[0]["id"]
+            
+            # Track contribution for creating a question
+            track_contribution(user["id"], client)
             
             # Handle PDF file upload if provided
             if 'pdf_file' in request.files:
@@ -693,11 +735,15 @@ def autosave_checkbox():
             return {"success": False, "error": "Question ID required"}, 400
         
         client = get_supabase(session.get("access_token"))
+        user = current_user()
         
         # Update the question's completion status
         client.table("questions").update({
             "is_completed": is_checked
         }).eq("id", question_id).execute()
+        
+        # Track contribution
+        track_contribution(user["id"], client)
         
         return {"success": True}
     except Exception as e:
@@ -718,10 +764,14 @@ def autosave_star():
             return {"success": False, "error": "Question ID and star type required"}, 400
         
         client = get_supabase(session.get("access_token"))
+        user = current_user()
         
         # Update the specific star field
         update_data = {star_type: is_checked}
         client.table("questions").update(update_data).eq("id", question_id).execute()
+        
+        # Track contribution
+        track_contribution(user["id"], client)
         
         return {"success": True}
     except Exception as e:
@@ -742,6 +792,7 @@ def autosave_content():
             return {"success": False, "error": "Question ID and field required"}, 400
         
         client = get_supabase(session.get("access_token"))
+        user = current_user()
         
         # Handle links field specially (convert from string to array)
         if field == 'links' and value:
@@ -752,7 +803,73 @@ def autosave_content():
         
         client.table("questions").update(update_data).eq("id", question_id).execute()
         
+        # Track contribution (only for significant content changes)
+        if field in ['title', 'description', 'code', 'notes'] and value.strip():
+            track_contribution(user["id"], client)
+        
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+
+@app.route("/api/contributions")
+@login_required
+def get_contributions():
+    """Get user's contribution data for the last year"""
+    try:
+        from datetime import date, timedelta
+        import calendar
+        
+        client = get_supabase(session.get("access_token"))
+        user = current_user()
+        
+        # Get contributions from the last 6 months (approximately 180 days)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=180)
+        
+        contributions = client.table("contributions").select("*").eq("user_id", user["id"]).gte("contribution_date", start_date.isoformat()).execute().data
+        
+        # Create a dictionary for quick lookup
+        contribution_dict = {c["contribution_date"]: c["contribution_count"] for c in contributions}
+        
+        # Generate the last 6 months of data
+        contribution_data = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            date_str = current_date.isoformat()
+            count = contribution_dict.get(date_str, 0)
+            
+            # Determine darkness level based on count
+            if count == 0:
+                level = 0
+            elif count <= 1:
+                level = 1
+            elif count <= 4:
+                level = 2
+            elif count <= 7:
+                level = 3
+            elif count <= 10:
+                level = 4
+            elif count <= 14:
+                level = 5
+            elif count <= 17:
+                level = 6
+            elif count <= 21:
+                level = 7
+            else:
+                level = 8
+            
+            contribution_data.append({
+                "date": date_str,
+                "count": count,
+                "level": level
+            })
+            
+            current_date += timedelta(days=1)
+        
+        return {"success": True, "data": contribution_data}
+        
     except Exception as e:
         return {"success": False, "error": str(e)}, 500
 

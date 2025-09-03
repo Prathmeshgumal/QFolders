@@ -36,6 +36,21 @@
         </div>
       </div>
     </div>
+    
+    <!-- Contribution Graph -->
+    <div class="card mt-3">
+      <div class="card-body">
+        <h5 class="card-title mb-3" style="color: var(--netflix-white); font-weight: 600;">Your Activity</h5>
+        <div id="contributionGraph" class="contribution-graph">
+          <!-- Contribution graph will be loaded here -->
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">
+            <span id="totalContributions">0</span> contributions in the last 6 months
+          </small>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="col-12 col-lg-8">
@@ -504,6 +519,65 @@
   transform: scale(1.1);
   opacity: 0.8;
 }
+
+/* Contribution Graph Styles */
+.contribution-graph {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.contribution-day {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.contribution-day:hover {
+  transform: scale(1.2);
+  z-index: 10;
+  position: relative;
+}
+
+/* Contribution levels based on green gradient theme */
+.contribution-level-0 { background-color: #161b22; } /* No contributions */
+.contribution-level-1 { background-color: #0e4429; } /* 1 contribution */
+.contribution-level-2 { background-color: #006d32; } /* 2-4 contributions */
+.contribution-level-3 { background-color: #26a641; } /* 5-7 contributions */
+.contribution-level-4 { background-color: #39d353; } /* 8-10 contributions */
+.contribution-level-5 { background-color: #40c463; } /* 11-14 contributions */
+.contribution-level-6 { background-color: #56d364; } /* 15-17 contributions */
+.contribution-level-7 { background-color: #6bcf7a; } /* 18-21 contributions */
+.contribution-level-8 { background-color: #7ee787; } /* 22+ contributions */
+
+.contribution-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.contribution-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.8);
+}
 </style>
 
 <script>
@@ -795,6 +869,106 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Initialize folder counters
   initializeFolderCounters();
+  
+  // Load contribution graph
+  loadContributionGraph();
 });
+
+// Contribution Graph Functions
+function loadContributionGraph() {
+  fetch('/api/contributions')
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        renderContributionGraph(data.data);
+      } else {
+        console.error('Failed to load contributions:', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error loading contributions:', error);
+    });
+}
+
+function renderContributionGraph(contributions) {
+  const graphContainer = document.getElementById('contributionGraph');
+  const totalContributions = contributions.reduce((sum, day) => sum + day.count, 0);
+  
+  // Update total contributions text
+  document.getElementById('totalContributions').textContent = totalContributions;
+  
+  // Clear existing content
+  graphContainer.innerHTML = '';
+  
+  // Group contributions by weeks (7 days each)
+  const weeks = [];
+  for (let i = 0; i < contributions.length; i += 7) {
+    weeks.push(contributions.slice(i, i + 7));
+  }
+  
+  // Create the graph
+  weeks.forEach((week, weekIndex) => {
+    const weekContainer = document.createElement('div');
+    weekContainer.style.display = 'flex';
+    weekContainer.style.flexDirection = 'column';
+    weekContainer.style.gap = '2px';
+    
+    week.forEach((day, dayIndex) => {
+      const dayElement = document.createElement('div');
+      dayElement.className = `contribution-day contribution-level-${day.level}`;
+      dayElement.title = formatTooltip(day);
+      
+      // Add hover effect
+      dayElement.addEventListener('mouseenter', function(e) {
+        showTooltip(e, day);
+      });
+      
+      dayElement.addEventListener('mouseleave', function() {
+        hideTooltip();
+      });
+      
+      weekContainer.appendChild(dayElement);
+    });
+    
+    graphContainer.appendChild(weekContainer);
+  });
+}
+
+function formatTooltip(day) {
+  const date = new Date(day.date);
+  const dateStr = date.toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  
+  if (day.count === 0) {
+    return `${dateStr}: No contributions`;
+  } else if (day.count === 1) {
+    return `${dateStr}: 1 contribution`;
+  } else {
+    return `${dateStr}: ${day.count} contributions`;
+  }
+}
+
+function showTooltip(event, day) {
+  const tooltip = document.createElement('div');
+  tooltip.className = 'contribution-tooltip';
+  tooltip.textContent = formatTooltip(day);
+  
+  document.body.appendChild(tooltip);
+  
+  const rect = event.target.getBoundingClientRect();
+  tooltip.style.left = rect.left + rect.width / 2 + 'px';
+  tooltip.style.top = rect.top + 'px';
+}
+
+function hideTooltip() {
+  const tooltip = document.querySelector('.contribution-tooltip');
+  if (tooltip) {
+    tooltip.remove();
+  }
+}
 </script>
 {% endblock %}
