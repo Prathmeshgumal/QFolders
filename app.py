@@ -13,7 +13,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "change-me")
-SITE_URL = os.getenv("SITE_URL", "http://localhost:5000")
+SITE_URL = os.getenv("SITE_URL", "https://q-folders.vercel.app")
 
 if not SUPABASE_URL or not SUPABASE_ANON_KEY:
     raise RuntimeError("Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables")
