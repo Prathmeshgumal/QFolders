@@ -259,5 +259,134 @@ function togglePDFViewer() {
     `;
   }
 }
+
+// Auto-save functionality for question content
+function autoSaveContent(field, value) {
+  const questionId = '{{ question["id"] }}';
+  
+  fetch('/api/autosave/content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      question_id: questionId,
+      field: field,
+      value: value
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log(`${field} auto-saved successfully`);
+      // Show a subtle save indicator
+      showSaveIndicator();
+    } else {
+      console.error('Auto-save failed:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Auto-save error:', error);
+  });
+}
+
+// Show save indicator
+function showSaveIndicator() {
+  // Create or update save indicator
+  let indicator = document.getElementById('saveIndicator');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'saveIndicator';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.body.appendChild(indicator);
+  }
+  
+  indicator.textContent = 'Saved';
+  indicator.style.opacity = '1';
+  
+  // Hide after 2 seconds
+  setTimeout(() => {
+    indicator.style.opacity = '0';
+  }, 2000);
+}
+
+// Debounce function to avoid too many API calls
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Create debounced auto-save function
+const debouncedAutoSave = debounce(autoSaveContent, 1000);
+
+// Add auto-save event listeners
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-save for title
+  const titleInput = document.querySelector('input[name="title"]');
+  if (titleInput) {
+    titleInput.addEventListener('input', function() {
+      debouncedAutoSave('title', this.value);
+    });
+  }
+  
+  // Auto-save for description
+  const descriptionInput = document.querySelector('textarea[name="description"]');
+  if (descriptionInput) {
+    descriptionInput.addEventListener('input', function() {
+      debouncedAutoSave('description', this.value);
+    });
+  }
+  
+  // Auto-save for links
+  const linksInput = document.querySelector('textarea[name="links"]');
+  if (linksInput) {
+    linksInput.addEventListener('input', function() {
+      debouncedAutoSave('links', this.value);
+    });
+  }
+  
+  // Auto-save for notes
+  const notesInput = document.querySelector('textarea[name="notes"]');
+  if (notesInput) {
+    notesInput.addEventListener('input', function() {
+      debouncedAutoSave('notes', this.value);
+    });
+  }
+  
+  // Auto-save for code
+  const codeInput = document.querySelector('textarea[name="code"]');
+  if (codeInput) {
+    codeInput.addEventListener('input', function() {
+      debouncedAutoSave('code', this.value);
+    });
+  }
+  
+  // Auto-save for terminal output
+  const terminalInput = document.querySelector('textarea[name="terminal_output"]');
+  if (terminalInput) {
+    terminalInput.addEventListener('input', function() {
+      debouncedAutoSave('terminal_output', this.value);
+    });
+  }
+});
 </script>
 {% endblock %}

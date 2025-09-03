@@ -111,7 +111,8 @@
                                   <input class="form-check-input question-checkbox" type="checkbox" 
                                          id="question-{{ q['id'] }}" 
                                          data-question-id="{{ q['id'] }}"
-                                         data-folder-id="{{ f['id'] }}">
+                                         data-folder-id="{{ f['id'] }}"
+                                         {% if q.get('is_completed') %}checked{% endif %}>
                                   <label class="form-check-label" for="question-{{ q['id'] }}"></label>
                                 </div>
                                 <a href="{{ url_for('question_detail', question_id=q['id']) }}" class="text-decoration-none">
@@ -126,7 +127,8 @@
                                          id="star1-{{ q['id'] }}" 
                                          data-question-id="{{ q['id'] }}"
                                          data-folder-id="{{ f['id'] }}"
-                                         data-star-type="1">
+                                         data-star-type="star1"
+                                         {% if q.get('star1') %}checked{% endif %}>
                                   <label class="form-check-label" for="star1-{{ q['id'] }}">
                                     <span class="star-icon">⭐</span>
                                   </label>
@@ -136,7 +138,8 @@
                                          id="star2-{{ q['id'] }}" 
                                          data-question-id="{{ q['id'] }}"
                                          data-folder-id="{{ f['id'] }}"
-                                         data-star-type="2">
+                                         data-star-type="star2"
+                                         {% if q.get('star2') %}checked{% endif %}>
                                   <label class="form-check-label" for="star2-{{ q['id'] }}">
                                     <span class="star-icon">⭐</span>
                                   </label>
@@ -146,7 +149,8 @@
                                          id="star3-{{ q['id'] }}" 
                                          data-question-id="{{ q['id'] }}"
                                          data-folder-id="{{ f['id'] }}"
-                                         data-star-type="3">
+                                         data-star-type="star3"
+                                         {% if q.get('star3') %}checked{% endif %}>
                                   <label class="form-check-label" for="star3-{{ q['id'] }}">
                                     <span class="star-icon">⭐</span>
                                   </label>
@@ -710,5 +714,87 @@ function clearAllCheckboxes() {
     updateFolderCounter(folderId);
   });
 }
+
+// Auto-save functionality
+function autoSaveCheckbox(questionId, isChecked) {
+  fetch('/api/autosave/checkbox', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      question_id: questionId,
+      checked: isChecked
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log('Checkbox auto-saved successfully');
+    } else {
+      console.error('Auto-save failed:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Auto-save error:', error);
+  });
+}
+
+function autoSaveStar(questionId, starType, isChecked) {
+  fetch('/api/autosave/star', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      question_id: questionId,
+      star_type: starType,
+      checked: isChecked
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      console.log('Star auto-saved successfully');
+    } else {
+      console.error('Auto-save failed:', data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Auto-save error:', error);
+  });
+}
+
+// Add event listeners for auto-save
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-save for question checkboxes
+  document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('question-checkbox')) {
+      const questionId = e.target.dataset.questionId;
+      const isChecked = e.target.checked;
+      
+      // Update UI immediately
+      updateQuestionItemState(e.target);
+      updateFolderCounter(e.target.dataset.folderId);
+      updateOverallProgress();
+      
+      // Auto-save to server
+      autoSaveCheckbox(questionId, isChecked);
+    }
+    
+    // Auto-save for star checkboxes
+    if (e.target.classList.contains('question-star')) {
+      const questionId = e.target.dataset.questionId;
+      const starType = e.target.dataset.starType;
+      const isChecked = e.target.checked;
+      
+      // Auto-save to server
+      autoSaveStar(questionId, starType, isChecked);
+    }
+  });
+  
+  // Initialize folder counters
+  initializeFolderCounters();
+});
 </script>
 {% endblock %}

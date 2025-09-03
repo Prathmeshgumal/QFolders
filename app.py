@@ -214,12 +214,12 @@ def dashboard():
     try:
         folders = client.table("folders").select("*").order("created_at", desc=True).execute().data
         
-        # For each folder, get its questions
+        # For each folder, get its questions with all fields including stars and completion
         for folder in folders:
             try:
                 questions = (
                     client.table("questions")
-                    .select("*")
+                    .select("*, star1, star2, star3, is_completed")
                     .eq("folder_id", folder["id"])
                     .order("created_at", desc=True)
                     .execute()
@@ -678,6 +678,83 @@ def add_question_to_folder(folder_id: str):
 @app.route("/auth/confirmed")
 def auth_confirmed():
     return render_template("auth/confirmed.html")
+
+
+@app.route("/api/autosave/checkbox", methods=["POST"])
+@login_required
+def autosave_checkbox():
+    """Auto-save checkbox state"""
+    try:
+        data = request.get_json()
+        question_id = data.get('question_id')
+        is_checked = data.get('checked', False)
+        
+        if not question_id:
+            return {"success": False, "error": "Question ID required"}, 400
+        
+        client = get_supabase(session.get("access_token"))
+        
+        # Update the question's completion status
+        client.table("questions").update({
+            "is_completed": is_checked
+        }).eq("id", question_id).execute()
+        
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+
+@app.route("/api/autosave/star", methods=["POST"])
+@login_required
+def autosave_star():
+    """Auto-save star rating"""
+    try:
+        data = request.get_json()
+        question_id = data.get('question_id')
+        star_type = data.get('star_type')  # 'star1', 'star2', 'star3'
+        is_checked = data.get('checked', False)
+        
+        if not question_id or not star_type:
+            return {"success": False, "error": "Question ID and star type required"}, 400
+        
+        client = get_supabase(session.get("access_token"))
+        
+        # Update the specific star field
+        update_data = {star_type: is_checked}
+        client.table("questions").update(update_data).eq("id", question_id).execute()
+        
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+
+@app.route("/api/autosave/content", methods=["POST"])
+@login_required
+def autosave_content():
+    """Auto-save question content"""
+    try:
+        data = request.get_json()
+        question_id = data.get('question_id')
+        field = data.get('field')  # 'title', 'description', 'code', 'notes', 'links', 'terminal_output'
+        value = data.get('value', '')
+        
+        if not question_id or not field:
+            return {"success": False, "error": "Question ID and field required"}, 400
+        
+        client = get_supabase(session.get("access_token"))
+        
+        # Handle links field specially (convert from string to array)
+        if field == 'links' and value:
+            links_list = [line.strip() for line in value.splitlines() if line.strip()]
+            update_data = {field: links_list}
+        else:
+            update_data = {field: value if value else None}
+        
+        client.table("questions").update(update_data).eq("id", question_id).execute()
+        
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
 
 
 if __name__ == "__main__":
