@@ -1,9 +1,11 @@
 import os
+import uuid
 from functools import wraps
 from typing import Optional, List
+from werkzeug.utils import secure_filename
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, session, flash, abort
+    Flask, render_template, request, redirect, url_for, session, flash, abort, send_file
 )
 from supabase import create_client, Client  # supabase-py v2
 from dotenv import load_dotenv
@@ -12,6 +14,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 FLASK_SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "change-me")
 SITE_URL = os.getenv("SITE_URL", "https://q-folders.vercel.app")
 
@@ -21,6 +24,14 @@ if not SUPABASE_URL or not SUPABASE_ANON_KEY:
 app = Flask(__name__)
 app.secret_key = FLASK_SECRET_KEY
 
+# File upload configuration
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+# Create upload folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 def get_supabase(access_token: Optional[str] = None) -> Client:
     client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -28,6 +39,13 @@ def get_supabase(access_token: Optional[str] = None) -> Client:
         # Ensure PostgREST uses the user's JWT for RLS
         client.postgrest.auth(access_token)
     return client
+
+
+def get_supabase_service() -> Client:
+    """Get Supabase client with service key (bypasses RLS)"""
+    if not SUPABASE_SERVICE_KEY:
+        raise RuntimeError("SUPABASE_SERVICE_KEY not found in environment variables")
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 def login_required(view_fn):
@@ -42,6 +60,56 @@ def login_required(view_fn):
 
 def current_user():
     return session.get("user")  # dict with id, email
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def upload_file_to_supabase(file, question_id):
+    """Upload file to Supabase storage bucket"""
+    try:
+        # Generate unique filename
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{question_id}_{uuid.uuid4().hex}.{file_extension}"
+        
+        # Read file content
+        file_content = file.read()
+        file.seek(0)  # Reset file pointer
+        
+        # Upload to Supabase storage using service key (bypasses RLS)
+        client = get_supabase_service()
+        bucket_name = "question-pdfs"
+        
+        response = client.storage.from_(bucket_name).upload(
+            unique_filename,
+            file_content,
+            {"content-type": "application/pdf"}
+        )
+        
+        if response:
+            return {
+                "file_name": file.filename,
+                "file_path": unique_filename,
+                "file_size": len(file_content)
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"Error uploading file to Supabase: {e}")
+        return None
+
+
+def delete_file_from_supabase(file_path):
+    """Delete file from Supabase storage"""
+    try:
+        client = get_supabase_service()
+        bucket_name = "question-pdfs"
+        client.storage.from_(bucket_name).remove([file_path])
+        return True
+    except Exception as e:
+        print(f"Error deleting file from Supabase: {e}")
+        return False
 
 
 @app.route("/")
@@ -192,7 +260,7 @@ def folder_detail(folder_id: str):
             links_list = [line.strip() for line in links_raw.splitlines() if line.strip()]
 
         try:
-            # Prepare the question data
+            # First, create the question to get the ID
             question_data = {
                 "user_id": user["id"],
                 "folder_id": folder_id,
@@ -207,7 +275,36 @@ def folder_detail(folder_id: str):
             if terminal_output and terminal_output.strip():
                 question_data["terminal_output"] = terminal_output
             
-            client.table("questions").insert(question_data).execute()
+            # Insert question and get the ID
+            result = client.table("questions").insert(question_data).execute()
+            question_id = result.data[0]["id"]
+            
+            # Handle PDF file upload if provided
+            if 'pdf_file' in request.files:
+                pdf_file = request.files['pdf_file']
+                if pdf_file and pdf_file.filename and allowed_file(pdf_file.filename):
+                    # Check file size
+                    pdf_file.seek(0, 2)  # Seek to end
+                    file_size = pdf_file.tell()
+                    pdf_file.seek(0)  # Reset to beginning
+                    
+                    if file_size <= MAX_FILE_SIZE:
+                        # Upload file to Supabase
+                        file_info = upload_file_to_supabase(pdf_file, question_id)
+                        if file_info:
+                            # Update question with file info
+                            client.table("questions").update({
+                                "pdf_file_name": file_info["file_name"],
+                                "pdf_file_path": file_info["file_path"],
+                                "pdf_file_size": file_info["file_size"]
+                            }).eq("id", question_id).execute()
+                        else:
+                            flash("Question added, but PDF upload failed.", "warning")
+                    else:
+                        flash("Question added, but PDF file is too large (max 10MB).", "warning")
+                elif pdf_file and pdf_file.filename:
+                    flash("Question added, but only PDF files are allowed.", "warning")
+            
             flash("Question added.", "success")
         except Exception as e:
             # If the error is about terminal_output column not existing, try without it
@@ -273,6 +370,170 @@ def question_detail(question_id: str):
     except Exception:
         pass
     return render_template("question.html", question=question, folder=folder)
+
+
+@app.route("/questions/<question_id>/update", methods=["POST"])
+@login_required
+def update_question(question_id: str):
+    user = current_user()
+    client = get_supabase(session.get("access_token"))
+    
+    # Get form data
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description") or None
+    notes = request.form.get("notes") or None
+    links_raw = request.form.get("links") or ""
+    code = request.form.get("code") or None
+    terminal_output = request.form.get("terminal_output") or None
+
+    if not title:
+        flash("Question title is required.", "danger")
+        return redirect(url_for("question_detail", question_id=question_id))
+
+    # Parse links as JSON array of strings (one per line)
+    links_list: Optional[List[str]] = None
+    if links_raw.strip():
+        links_list = [line.strip() for line in links_raw.splitlines() if line.strip()]
+
+    try:
+        # Prepare the update data
+        update_data = {
+            "title": title,
+            "description": description,
+            "notes": notes,
+            "links": links_list,
+            "code": code,
+        }
+        
+        # Only add terminal_output if it's provided and not empty
+        if terminal_output and terminal_output.strip():
+            update_data["terminal_output"] = terminal_output
+        
+        # Handle PDF file upload if provided
+        if 'pdf_file' in request.files:
+            pdf_file = request.files['pdf_file']
+            if pdf_file and pdf_file.filename and allowed_file(pdf_file.filename):
+                # Check file size
+                pdf_file.seek(0, 2)  # Seek to end
+                file_size = pdf_file.tell()
+                pdf_file.seek(0)  # Reset to beginning
+                
+                if file_size <= MAX_FILE_SIZE:
+                    # Get current question to check for existing PDF
+                    current_question = client.table("questions").select("pdf_file_path").eq("id", question_id).single().execute().data
+                    
+                    # Delete old PDF if it exists
+                    if current_question and current_question.get("pdf_file_path"):
+                        delete_file_from_supabase(current_question["pdf_file_path"])
+                    
+                    # Upload new file to Supabase
+                    file_info = upload_file_to_supabase(pdf_file, question_id)
+                    if file_info:
+                        update_data.update({
+                            "pdf_file_name": file_info["file_name"],
+                            "pdf_file_path": file_info["file_path"],
+                            "pdf_file_size": file_info["file_size"]
+                        })
+                    else:
+                        flash("Question updated, but PDF upload failed.", "warning")
+                else:
+                    flash("Question updated, but PDF file is too large (max 10MB).", "warning")
+            elif pdf_file and pdf_file.filename:
+                flash("Question updated, but only PDF files are allowed.", "warning")
+        
+        # Update the question
+        client.table("questions").update(update_data).eq("id", question_id).execute()
+        flash("Question updated successfully.", "success")
+    except Exception as e:
+        # If the error is about terminal_output column not existing, try without it
+        if "terminal_output" in str(e):
+            try:
+                update_data = {
+                    "title": title,
+                    "description": description,
+                    "notes": notes,
+                    "links": links_list,
+                    "code": code,
+                }
+                client.table("questions").update(update_data).eq("id", question_id).execute()
+                flash("Question updated (terminal output not saved - column not available).", "warning")
+            except Exception as e2:
+                flash(f"Failed to update question: {str(e2)}", "danger")
+        else:
+            flash(f"Failed to update question: {str(e)}", "danger")
+
+    return redirect(url_for("question_detail", question_id=question_id))
+
+
+@app.route("/questions/<question_id>/view-pdf")
+@login_required
+def view_pdf(question_id: str):
+    """View PDF file for a question (for embedding)"""
+    client = get_supabase(session.get("access_token"))
+    
+    try:
+        # Get question with PDF info
+        question = client.table("questions").select("pdf_file_name, pdf_file_path").eq("id", question_id).single().execute().data
+        
+        if not question or not question.get("pdf_file_path"):
+            return "PDF file not found.", 404
+        
+        # Download file from Supabase storage using service key
+        client = get_supabase_service()
+        bucket_name = "question-pdfs"
+        file_data = client.storage.from_(bucket_name).download(question["pdf_file_path"])
+        
+        if file_data:
+            # Return file for viewing (not download)
+            from io import BytesIO
+            return send_file(
+                BytesIO(file_data),
+                as_attachment=False,
+                download_name=question["pdf_file_name"],
+                mimetype='application/pdf'
+            )
+        else:
+            return "Failed to load PDF file.", 404
+            
+    except Exception as e:
+        return f"Error loading PDF: {str(e)}", 500
+
+
+@app.route("/questions/<question_id>/download-pdf")
+@login_required
+def download_pdf(question_id: str):
+    """Download PDF file for a question"""
+    client = get_supabase(session.get("access_token"))
+    
+    try:
+        # Get question with PDF info
+        question = client.table("questions").select("pdf_file_name, pdf_file_path").eq("id", question_id).single().execute().data
+        
+        if not question or not question.get("pdf_file_path"):
+            flash("PDF file not found.", "danger")
+            return redirect(url_for("question_detail", question_id=question_id))
+        
+        # Download file from Supabase storage using service key
+        client = get_supabase_service()
+        bucket_name = "question-pdfs"
+        file_data = client.storage.from_(bucket_name).download(question["pdf_file_path"])
+        
+        if file_data:
+            # Return file as download
+            from io import BytesIO
+            return send_file(
+                BytesIO(file_data),
+                as_attachment=True,
+                download_name=question["pdf_file_name"],
+                mimetype='application/pdf'
+            )
+        else:
+            flash("Failed to download PDF file.", "danger")
+            return redirect(url_for("question_detail", question_id=question_id))
+            
+    except Exception as e:
+        flash(f"Error downloading PDF: {str(e)}", "danger")
+        return redirect(url_for("question_detail", question_id=question_id))
 
 
 @app.route("/auth/resend-confirmation", methods=["POST"])
@@ -345,7 +606,7 @@ def add_question_to_folder(folder_id: str):
         links_list = [line.strip() for line in links_raw.splitlines() if line.strip()]
 
     try:
-        # Prepare the question data
+        # First, create the question to get the ID
         question_data = {
             "user_id": user["id"],
             "folder_id": folder_id,
@@ -360,7 +621,36 @@ def add_question_to_folder(folder_id: str):
         if terminal_output and terminal_output.strip():
             question_data["terminal_output"] = terminal_output
         
-        client.table("questions").insert(question_data).execute()
+        # Insert question and get the ID
+        result = client.table("questions").insert(question_data).execute()
+        question_id = result.data[0]["id"]
+        
+        # Handle PDF file upload if provided
+        if 'pdf_file' in request.files:
+            pdf_file = request.files['pdf_file']
+            if pdf_file and pdf_file.filename and allowed_file(pdf_file.filename):
+                # Check file size
+                pdf_file.seek(0, 2)  # Seek to end
+                file_size = pdf_file.tell()
+                pdf_file.seek(0)  # Reset to beginning
+                
+                if file_size <= MAX_FILE_SIZE:
+                    # Upload file to Supabase
+                    file_info = upload_file_to_supabase(pdf_file, question_id)
+                    if file_info:
+                        # Update question with file info
+                        client.table("questions").update({
+                            "pdf_file_name": file_info["file_name"],
+                            "pdf_file_path": file_info["file_path"],
+                            "pdf_file_size": file_info["file_size"]
+                        }).eq("id", question_id).execute()
+                    else:
+                        flash("Question added, but PDF upload failed.", "warning")
+                else:
+                    flash("Question added, but PDF file is too large (max 10MB).", "warning")
+            elif pdf_file and pdf_file.filename:
+                flash("Question added, but only PDF files are allowed.", "warning")
+        
         flash("Question added successfully.", "success")
     except Exception as e:
         # If the error is about terminal_output column not existing, try without it

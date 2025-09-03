@@ -3,57 +3,93 @@
 <div class="d-flex align-items-center justify-content-between mb-4">
   <h1 class="h3 mb-0" style="color: var(--netflix-white); font-weight: 700;">{{ question['title'] }}</h1>
   {% if folder %}
-    <a href="{{ url_for('folder_detail', folder_id=folder['id']) }}" class="btn btn-outline-secondary btn-sm" style="font-weight: 500;">← Back to "{{ folder['name'] }}"</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm" style="font-weight: 500;">← Back to Dashboard</a>
   {% endif %}
 </div>
 
+<form method="post" action="{{ url_for('update_question', question_id=question['id']) }}" enctype="multipart/form-data">
 <div class="row g-4">
   <div class="col-12 col-lg-6">
     <div class="card mb-3">
       <div class="card-body">
-        <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Que title (required)</h2>
-        <p class="mb-0" style="color: var(--netflix-white); line-height: 1.6; font-size: 1.05rem; background: var(--netflix-gray); padding: 12px; border-radius: 6px; border: 1px solid var(--netflix-border);">{{ question['title'] }}</p>
+        <input type="text" name="title" class="form-control" value="{{ question['title'] }}" required style="background: var(--netflix-gray); border: 1px solid var(--netflix-border); color: var(--netflix-white); padding: 12px; border-radius: 6px; font-size: 1.05rem; font-weight: 600;">
       </div>
     </div>
 
     <div class="card mb-3">
       <div class="card-body">
         <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Que description</h2>
-        <p class="mb-0" style="color: var(--netflix-white); line-height: 1.6; font-size: 1rem; background: var(--netflix-gray); padding: 12px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 100px;">{{ question['description'] or 'No description provided.' }}</p>
+        <textarea name="description" class="form-control" rows="4" style="background: var(--netflix-gray); border: 1px solid var(--netflix-border); color: var(--netflix-white); padding: 12px; border-radius: 6px; font-size: 1rem; line-height: 1.6; min-height: 100px;">{{ question['description'] or '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-body">
+        <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">PDF File</h2>
+        <div style="background: var(--netflix-gray); padding: 8px; border-radius: 6px; border: 1px solid var(--netflix-border);">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center" style="flex: 1;">
+              {% if question.get('pdf_file_name') %}
+                <span style="color: var(--netflix-white); font-size: 0.9rem; margin-right: 8px;">📄 {{ question['pdf_file_name'] }}</span>
+                <small style="color: var(--netflix-light-gray); font-size: 0.75rem;">{{ (question.get('pdf_file_size', 0) / 1024 / 1024) | round(2) }}MB</small>
+              {% else %}
+                <span style="color: var(--netflix-light-gray); font-size: 0.9rem;">No PDF attached</span>
+              {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              {% if question.get('pdf_file_name') %}
+                <button type="button" class="btn btn-outline-success" onclick="togglePDFViewer()" id="viewerToggleBtn" style="padding: 4px 6px; font-size: 0.75rem; border-radius: 4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                </button>
+                <a href="{{ url_for('download_pdf', question_id=question['id']) }}" class="btn btn-outline-success" target="_blank" style="padding: 4px 6px; font-size: 0.75rem; border-radius: 4px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7,10 12,15 17,10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                </a>
+              {% endif %}
+              <label for="pdf_file_input" class="btn btn-outline-success" style="padding: 4px 6px; font-size: 0.75rem; border-radius: 4px; margin: 0; cursor: pointer;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14,2 14,8 20,8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10,9 9,9 8,9"></polyline>
+                </svg>
+              </label>
+              <input type="file" id="pdf_file_input" name="pdf_file" accept=".pdf" style="display: none;" />
+            </div>
+          </div>
+          {% if question.get('pdf_file_name') %}
+            <div id="pdfViewer" style="display: none; height: 600px; background: white; margin-top: 8px; border-radius: 4px; overflow: hidden;">
+              <iframe 
+                src="{{ url_for('view_pdf', question_id=question['id']) }}" 
+                width="100%" 
+                height="100%" 
+                style="border: none;"
+                title="PDF Viewer">
+              </iframe>
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
 
     <div class="card mb-3">
       <div class="card-body">
         <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Links (one per line)</h2>
-        {% if question['links'] %}
-          <div style="background: var(--netflix-gray); padding: 12px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 100px;">
-            {% for link in question['links'] %}
-              <div class="mb-2">
-                <a href="{{ link }}" target="_blank" rel="noopener noreferrer" 
-                   style="color: var(--netflix-red); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; padding: 6px 10px; background: rgba(229, 9, 20, 0.1); border-radius: 4px; transition: all 0.3s ease;"
-                   onmouseover="this.style.background='rgba(229, 9, 20, 0.2)'; this.style.transform='translateY(-1px)'"
-                   onmouseout="this.style.background='rgba(229, 9, 20, 0.1)'; this.style.transform='translateY(0)'">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15,3 21,3 21,9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                  {{ link }}
-                </a>
-              </div>
-            {% endfor %}
-          </div>
-        {% else %}
-          <p class="mb-0" style="color: var(--netflix-light-gray); font-style: italic; background: var(--netflix-gray); padding: 12px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 100px;">No reference links provided.</p>
-        {% endif %}
+        <textarea name="links" class="form-control" rows="4" style="background: var(--netflix-gray); border: 1px solid var(--netflix-border); color: var(--netflix-white); padding: 12px; border-radius: 6px; font-size: 1rem; line-height: 1.6; min-height: 100px;">{% if question['links'] %}{{ question['links'] | join('\n') }}{% endif %}</textarea>
       </div>
     </div>
 
     <div class="card">
       <div class="card-body">
         <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Notes</h2>
-        <pre class="mb-0" style="white-space: pre-wrap; color: var(--netflix-white); line-height: 1.6; font-size: 1rem; background: var(--netflix-gray); padding: 12px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 100px;">{{ question['notes'] or 'No notes added.' }}</pre>
+        <textarea name="notes" class="form-control" rows="4" style="background: var(--netflix-gray); border: 1px solid var(--netflix-border); color: var(--netflix-white); padding: 12px; border-radius: 6px; font-size: 1rem; line-height: 1.6; min-height: 100px;">{{ question['notes'] or '' }}</textarea>
       </div>
     </div>
   </div>
@@ -63,9 +99,45 @@
       <div class="card-body">
         <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Code section</h2>
         {% if question['code'] %}
-          <pre class="mb-0" style="white-space: pre-wrap; color: var(--netflix-white); line-height: 1.6; font-size: 0.95rem; background: var(--netflix-gray); padding: 16px; border-radius: 6px; border: 1px solid var(--netflix-border); font-family: 'Courier New', monospace; overflow-x: auto; min-height: 400px;">{{ question['code'] }}</pre>
+          <div class="code-editor-container" style="background: #1e1e1e; border-radius: 8px; border: 1px solid #333; overflow: hidden; min-height: 400px;">
+            <div class="code-editor-header" style="background: #2d2d30; padding: 8px 16px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content-between;">
+              <div style="display: flex; align-items: center;">
+                <div style="width: 12px; height: 12px; background: #ff5f56; border-radius: 50%; margin-right: 8px;"></div>
+                <div style="width: 12px; height: 12px; background: #ffbd2e; border-radius: 50%; margin-right: 8px;"></div>
+                <div style="width: 12px; height: 12px; background: #27ca3f; border-radius: 50%; margin-right: 16px;"></div>
+                <span style="color: #cccccc; font-size: 0.85rem; font-family: 'Segoe UI', sans-serif;">main.cpp</span>
+              </div>
+              <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+            </div>
+            <div class="code-editor-content" style="position: relative; overflow-x: auto;">
+              <div class="code-editor-lines" style="display: flex; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">
+                <div class="line-numbers" style="background: #252526; color: #858585; padding: 16px 8px 16px 16px; border-right: 1px solid #333; user-select: none; min-width: 50px; text-align: right;">
+                  {% set code_lines = question['code'].split('\n') %}
+                  {% for i in range(1, code_lines|length + 1) %}
+                    <div style="height: 1.5em;">{{ i }}</div>
+                  {% endfor %}
+                </div>
+                <div class="code-content" style="flex: 1; padding: 16px; color: #d4d4d4; background: #1e1e1e;">
+                  <textarea name="code" style="margin: 0; width: 100%; height: 100%; background: transparent; border: none; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; letter-spacing: 0.5px; resize: none; outline: none;">{{ question['code'] or '' }}</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
         {% else %}
-          <p class="mb-0" style="color: var(--netflix-light-gray); font-style: italic; background: var(--netflix-gray); padding: 16px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 400px;">No code snippet provided.</p>
+          <div class="code-editor-container" style="background: #1e1e1e; border-radius: 8px; border: 1px solid #333; overflow: hidden; min-height: 400px;">
+            <div class="code-editor-header" style="background: #2d2d30; padding: 8px 16px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content-between;">
+              <div style="display: flex; align-items: center;">
+                <div style="width: 12px; height: 12px; background: #ff5f56; border-radius: 50%; margin-right: 8px;"></div>
+                <div style="width: 12px; height: 12px; background: #ffbd2e; border-radius: 50%; margin-right: 8px;"></div>
+                <div style="width: 12px; height: 12px; background: #27ca3f; border-radius: 50%; margin-right: 16px;"></div>
+                <span style="color: #cccccc; font-size: 0.85rem; font-family: 'Segoe UI', sans-serif;">main.cpp</span>
+              </div>
+              <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+            </div>
+            <div class="code-editor-content" style="padding: 16px; color: #888; font-style: italic; text-align: center; font-family: 'Segoe UI', sans-serif;">
+              No code snippet provided.
+            </div>
+          </div>
         {% endif %}
       </div>
     </div>
@@ -73,18 +145,119 @@
     <div class="card">
       <div class="card-body">
         <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Terminal</h2>
-        <div style="background: #1a1a1a; padding: 16px; border-radius: 6px; border: 1px solid var(--netflix-border); min-height: 200px; font-family: 'Courier New', monospace;">
-          <div style="color: #00ff00; font-size: 0.9rem; margin-bottom: 8px;">$</div>
-          <div style="color: var(--netflix-white); line-height: 1.6; font-size: 0.95rem;">
-            {% if question.get('terminal_output') %}
-              {{ question['terminal_output'] }}
-            {% else %}
-              <span style="color: var(--netflix-light-gray); font-style: italic;">No terminal output saved.</span>
-            {% endif %}
+        <div class="terminal-section">
+          <div class="terminal-header">
+            <div style="display: flex; align-items: center;">
+              <div style="width: 12px; height: 12px; background: #ff5f56; border-radius: 50%; margin-right: 8px;"></div>
+              <div style="width: 12px; height: 12px; background: #ffbd2e; border-radius: 50%; margin-right: 8px;"></div>
+              <div style="width: 12px; height: 12px; background: #27ca3f; border-radius: 50%; margin-right: 16px;"></div>
+              <span>Terminal</span>
+            </div>
+          </div>
+          <div class="terminal-content">
+            <div style="color: #00ff00; font-size: 0.9rem; margin-bottom: 8px;">$</div>
+            <textarea name="terminal_output" style="width: 100%; height: 100%; background: transparent; border: none; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; letter-spacing: 0.5px; resize: none; outline: none; min-height: 150px;">{{ question.get('terminal_output') or '' }}</textarea>
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" class="btn btn-success">Save Changes</button>
+    </div>
+  </div>
+</div>
+</form>
+<style>
+/* Code Editor Syntax Highlighting */
+.code-content pre {
+  color: #d4d4d4 !important;
+  letter-spacing: 1.5 px !important;
+}
+
+/* Basic C++ syntax highlighting */
+.code-content pre {
+  /* Keywords */
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    transparent 100%
+  );
+}
+
+/* Add some basic syntax highlighting using CSS */
+.code-content pre:has-text("#include") {
+  color: #569cd6; /* Blue for includes */
+}
+
+/* Line number styling */
+.line-numbers div {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #858585;
+}
+
+/* Code editor container hover effect */
+.code-editor-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Terminal section styling to match */
+.terminal-section {
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 1px solid #333;
+  overflow: hidden;
+}
+
+.terminal-header {
+  background: #2d2d30;
+  padding: 8px 16px;
+  border-bottom: 1px solid #333;
+  color: #cccccc;
+  font-size: 0.85rem;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.terminal-content {
+  background: #1e1e1e;
+  padding: 16px;
+  color: #d4d4d4;
+  font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  letter-spacing: 0.5px;
+  min-height: 200px;
+}
+</style>
+
+<script>
+function togglePDFViewer() {
+  const viewer = document.getElementById('pdfViewer');
+  const button = document.getElementById('viewerToggleBtn');
+  
+  if (viewer.style.display === 'none' || viewer.style.display === '') {
+    viewer.style.display = 'block';
+    button.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+      </svg>
+    `;
+  } else {
+    viewer.style.display = 'none';
+    button.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    `;
+  }
+}
+</script>
 {% endblock %}

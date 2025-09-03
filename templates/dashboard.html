@@ -43,7 +43,7 @@
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <h2 class="h5 mb-0">Your Folders</h2>
-          <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+          <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createFolderModal">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -75,7 +75,7 @@
                         style="font-size: 0.75rem; display: none; margin-right: 2rem;">
                     0/{{ f['questions']|length }}
                   </span>
-                  <button type="button" class="btn btn-outline-danger btn-sm delete-btn" 
+                  <button type="button" class="btn btn-outline-success btn-sm delete-btn" 
                           onclick="confirmDeleteFolder('{{ f['id'] }}', '{{ f['name'] }}')"
                           title="Delete folder">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -91,7 +91,7 @@
                   <div class="folder-content">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <h6 class="mb-0" style="color: var(--netflix-light-gray);">Questions ({{ f['questions']|length }})</h6>
-                      <button type="button" class="btn btn-primary btn-sm" 
+                      <button type="button" class="btn btn-success btn-sm" 
                               onclick="openAddQuestionModal('{{ f['id'] }}', '{{ f['name'] }}')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
                           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -105,31 +105,53 @@
                       <div class="questions-list">
                         {% for q in f['questions'] %}
                           <div class="question-item">
-                            <div class="d-flex align-items-start">
-                              <div class="form-check me-3 mt-1">
-                                <input class="form-check-input question-checkbox" type="checkbox" 
-                                       id="question-{{ q['id'] }}" 
-                                       data-question-id="{{ q['id'] }}"
-                                       data-folder-id="{{ f['id'] }}">
-                                <label class="form-check-label" for="question-{{ q['id'] }}"></label>
-                              </div>
-                              <div class="form-check me-2 mt-1">
-                                <input class="form-check-input question-star" type="checkbox" 
-                                       id="star-{{ q['id'] }}" 
-                                       data-question-id="{{ q['id'] }}"
-                                       data-folder-id="{{ f['id'] }}">
-                                <label class="form-check-label" for="star-{{ q['id'] }}">
-                                  <span class="star-icon">⭐</span>
-                                </label>
-                              </div>
-                              <a href="{{ url_for('question_detail', question_id=q['id']) }}" class="text-decoration-none flex-grow-1">
-                                <div>
-                                  <h6 class="mb-1" style="color: var(--netflix-white); font-weight: 500;">{{ q['title'] }}</h6>
-                                  {% if q['description'] %}
-                                    <p class="mb-0 text-muted" style="font-size: 0.85rem; line-height: 1.3;">{{ q['description'][:80] }}{% if q['description']|length > 80 %}...{% endif %}</p>
-                                  {% endif %}
+                            <div class="d-flex align-items-center justify-content-between">
+                              <div class="d-flex align-items-center">
+                                <div class="form-check me-3">
+                                  <input class="form-check-input question-checkbox" type="checkbox" 
+                                         id="question-{{ q['id'] }}" 
+                                         data-question-id="{{ q['id'] }}"
+                                         data-folder-id="{{ f['id'] }}">
+                                  <label class="form-check-label" for="question-{{ q['id'] }}"></label>
                                 </div>
-                              </a>
+                                <a href="{{ url_for('question_detail', question_id=q['id']) }}" class="text-decoration-none">
+                                  <div>
+                                    <h6 class="mb-0" style="color: var(--netflix-white); font-weight: 500;">{{ q['title'] }}</h6>
+                                  </div>
+                                </a>
+                              </div>
+                              <div class="d-flex align-items-center">
+                                <div class="form-check">
+                                  <input class="form-check-input question-star" type="checkbox" 
+                                         id="star1-{{ q['id'] }}" 
+                                         data-question-id="{{ q['id'] }}"
+                                         data-folder-id="{{ f['id'] }}"
+                                         data-star-type="1">
+                                  <label class="form-check-label" for="star1-{{ q['id'] }}">
+                                    <span class="star-icon">⭐</span>
+                                  </label>
+                                </div>
+                                <div class="form-check">
+                                  <input class="form-check-input question-star" type="checkbox" 
+                                         id="star2-{{ q['id'] }}" 
+                                         data-question-id="{{ q['id'] }}"
+                                         data-folder-id="{{ f['id'] }}"
+                                         data-star-type="2">
+                                  <label class="form-check-label" for="star2-{{ q['id'] }}">
+                                    <span class="star-icon">⭐</span>
+                                  </label>
+                                </div>
+                                <div class="form-check">
+                                  <input class="form-check-input question-star" type="checkbox" 
+                                         id="star3-{{ q['id'] }}" 
+                                         data-question-id="{{ q['id'] }}"
+                                         data-folder-id="{{ f['id'] }}"
+                                         data-star-type="3">
+                                  <label class="form-check-label" for="star3-{{ q['id'] }}">
+                                    <span class="star-icon">⭐</span>
+                                  </label>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         {% endfor %}
@@ -172,7 +194,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Create Folder</button>
+          <button type="submit" class="btn btn-success">Create Folder</button>
         </div>
       </form>
     </div>
@@ -187,7 +209,7 @@
         <h5 class="modal-title" id="addQuestionModalLabel">Add New Question</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form id="addQuestionForm" method="post">
+      <form id="addQuestionForm" method="post" enctype="multipart/form-data">
         <div class="modal-body">
           <div class="row g-4">
             <div class="col-12 col-lg-6">
@@ -207,6 +229,11 @@
                 <label for="question-notes" class="form-label">Notes</label>
                 <textarea id="question-notes" name="notes" class="form-control" rows="4" placeholder="Add any additional notes (optional)"></textarea>
               </div>
+              <div class="mb-3">
+                <label for="question-pdf" class="form-label">PDF File (optional)</label>
+                <input type="file" id="question-pdf" name="pdf_file" class="form-control" accept=".pdf" />
+                <div class="form-text">Upload a PDF file related to this question (max 10MB)</div>
+              </div>
             </div>
             <div class="col-12 col-lg-6">
               <div class="mb-3">
@@ -222,7 +249,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Add Question</button>
+          <button type="submit" class="btn btn-success">Add Question</button>
         </div>
       </form>
     </div>
@@ -254,26 +281,26 @@
 <style>
 .delete-btn {
   border: none !important;
-  background: linear-gradient(135deg, #e50914, #b8070f) !important;
+  background: linear-gradient(135deg, #28a745, #1e7e34) !important;
   color: white !important;
   border-radius: 6px !important;
   padding: 8px 10px !important;
   transition: all 0.3s ease !important;
-  box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3) !important;
   position: relative;
   overflow: hidden;
 }
 
 .delete-btn:hover {
-  background: linear-gradient(135deg, #f40612, #d32f2f) !important;
+  background: linear-gradient(135deg, #34ce57, #28a745) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 4px 16px rgba(229, 9, 20, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(40, 167, 69, 0.4) !important;
   color: white !important;
 }
 
 .delete-btn:active {
   transform: translateY(0) !important;
-  box-shadow: 0 2px 8px rgba(229, 9, 20, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3) !important;
 }
 
 .delete-btn svg {
@@ -378,9 +405,9 @@
 }
 
 .dropdown-toggle[aria-expanded="true"] {
-  background-color: var(--netflix-red) !important;
-  border-color: var(--netflix-red) !important;
-  color: var(--netflix-white) !important;
+  background-color: var(--netflix-white) !important;
+  border-color: var(--netflix-white) !important;
+  color: var(--netflix-dark) !important;
 }
 
 .dropdown-toggle[aria-expanded="true"] svg {
@@ -455,7 +482,9 @@
 .star-icon {
   font-size: 18px;
   transition: all 0.3s ease;
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   filter: grayscale(100%);
   opacity: 0.6;
@@ -535,7 +564,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Star checkbox functionality
   starCheckboxes.forEach(starCheckbox => {
     // Load saved state from localStorage
-    const savedStarState = localStorage.getItem('star-' + starCheckbox.dataset.questionId);
+    const questionId = starCheckbox.dataset.questionId;
+    const starType = starCheckbox.dataset.starType;
+    const savedStarState = localStorage.getItem('star-' + questionId + '-' + starType);
     if (savedStarState === 'checked') {
       starCheckbox.checked = true;
     }
@@ -543,13 +574,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add event listener for star checkbox changes
     starCheckbox.addEventListener('change', function() {
       const questionId = this.dataset.questionId;
+      const starType = this.dataset.starType;
       
       if (this.checked) {
-        localStorage.setItem('star-' + questionId, 'checked');
-        console.log('Question ' + questionId + ' starred');
+        localStorage.setItem('star-' + questionId + '-' + starType, 'checked');
+        console.log('Question ' + questionId + ' star ' + starType + ' checked');
       } else {
-        localStorage.removeItem('star-' + questionId);
-        console.log('Question ' + questionId + ' unstarred');
+        localStorage.removeItem('star-' + questionId + '-' + starType);
+        console.log('Question ' + questionId + ' star ' + starType + ' unchecked');
       }
     });
   });
@@ -559,16 +591,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateFolderCounter(folderId) {
-  const folderCheckboxes = document.querySelectorAll(`[data-folder-id="${folderId}"]`);
-  const checkedCount = document.querySelectorAll(`[data-folder-id="${folderId}"]:checked`).length;
+  const folderCheckboxes = document.querySelectorAll(`.question-checkbox[data-folder-id="${folderId}"]`);
+  const checkedCount = document.querySelectorAll(`.question-checkbox[data-folder-id="${folderId}"]:checked`).length;
   const totalCount = folderCheckboxes.length;
   const counter = document.getElementById(`counter-${folderId}`);
   
   if (counter) {
     counter.textContent = `${checkedCount}/${totalCount}`;
     
-    // Show/hide counter based on checked count
-    if (checkedCount > 0) {
+    // Show counter if there are questions in the folder
+    if (totalCount > 0) {
       counter.style.display = 'inline-block';
       
       // Change color based on completion percentage
