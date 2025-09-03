@@ -114,3 +114,11 @@ celerybeat.pid
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# .env
+.env
+
+#sql scripts
+001_init.sql
+002_add_terminal_output.sql
+003_add_pdf_file_name.sql
