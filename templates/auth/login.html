@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <h1 class="h3 mb-4 text-center" style="color: var(--netflix-white); font-weight: 700;">Welcome Back</h1>
+        <form method="post">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input name="email" id="email" type="email" class="form-control" placeholder="Enter your email" required />
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input name="password" id="password" type="password" class="form-control" placeholder="Enter your password" required />
+          </div>
+          <button class="btn btn-primary w-100 py-2" type="submit" style="font-weight: 600; font-size: 1.1rem;">Sign In</button>
+        </form>
+        <p class="mt-4 mb-0 text-center">
+          <span style="color: var(--netflix-light-gray);">New to QFolders?</span> 
+          <a href="{{ url_for('register') }}" style="color: var(--netflix-red); font-weight: 500;">Sign up now</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

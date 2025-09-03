@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0" style="color: var(--netflix-white); font-weight: 700;">{{ folder['name'] }}</h1>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm" style="font-weight: 500;">← Back to Dashboard</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h5 mb-4" style="color: var(--netflix-white); font-weight: 600;">Add New Question</h2>
+        <form method="post">
+          <div class="row g-4">
+            <div class="col-12 col-lg-6">
+              <div class="mb-3">
+                <label for="title" class="form-label">Que title (required)</label>
+                <input id="title" name="title" class="form-control" placeholder="Enter your question title" required />
+              </div>
+
+              <div class="mb-3">
+                <label for="description" class="form-label">Que description</label>
+                <textarea id="description" name="description" class="form-control" rows="4" placeholder="Describe your question in detail (optional)"></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label for="links" class="form-label">Links (one per line)</label>
+                <textarea id="links" name="links" class="form-control" rows="4" placeholder="Add reference links, one per line (optional)"></textarea>
+              </div>
+
+              <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea id="notes" name="notes" class="form-control" rows="4" placeholder="Add any additional notes (optional)"></textarea>
+              </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+              <div class="mb-3">
+                <label for="code" class="form-label">Code section</label>
+                <textarea id="code" name="code" class="form-control" rows="12" placeholder="Paste your code here (optional)" style="font-family: 'Courier New', monospace;"></textarea>
+              </div>
+              <div class="mb-3">
+                <label for="terminal_output" class="form-label">Terminal</label>
+                <textarea id="terminal_output" name="terminal_output" class="form-control" rows="4" placeholder="Paste terminal output here (optional)" style="font-family: 'Courier New', monospace; background: #1a1a1a; color: var(--netflix-white);"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-center mt-4">
+            <button class="btn btn-primary py-2 px-4" style="font-weight: 600; font-size: 1.1rem;">Add Question</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h5 mb-4" style="color: var(--netflix-white); font-weight: 600;">Your Questions</h2>
+        {% if questions %}
+          <div class="list-group">
+            {% for q in questions %}
+              <a class="list-group-item list-group-item-action" href="{{ url_for('question_detail', question_id=q['id']) }}" style="border-radius: 8px; margin-bottom: 8px;">
+                <div class="d-flex w-100 justify-content-between align-items-start">
+                  <h3 class="h6 mb-2" style="color: var(--netflix-white); font-weight: 600;">{{ q['title'] }}</h3>
+                  <small class="text-muted" style="font-size: 0.8rem;">{{ q['created_at'] | replace('T',' ') | replace('Z','') }}</small>
+                </div>
+                {% if q['description'] %}
+                  <p class="mb-0 text-muted" style="font-size: 0.9rem; line-height: 1.4;">{{ q['description'][:140] }}{% if q['description']|length > 140 %}...{% endif %}</p>
+                {% endif %}
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-4">
+            <p class="text-muted mb-0" style="font-size: 1.1rem;">No questions yet.</p>
+            <p class="text-muted" style="font-size: 0.9rem;">Add your first question to get started!</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <h1 class="h3 mb-4 text-center" style="color: var(--netflix-white); font-weight: 700;">Join QFolders</h1>
+        <form method="post">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input name="email" id="email" type="email" class="form-control" placeholder="Enter your email" required />
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input name="password" id="password" type="password" class="form-control" placeholder="Create a password" required />
+          </div>
+          <button class="btn btn-primary w-100 py-2" type="submit" style="font-weight: 600; font-size: 1.1rem;">Get Started</button>
+        </form>
+        <p class="mt-4 mb-0 text-center">
+          <span style="color: var(--netflix-light-gray);">Already have an account?</span> 
+          <a href="{{ url_for('login') }}" style="color: var(--netflix-red); font-weight: 500;">Sign in</a>
+        </p>
+        <hr class="my-4" style="border-color: var(--netflix-border);" />
+        <h2 class="h6 mb-3" style="color: var(--netflix-white); font-weight: 600;">Didn't get the confirmation email?</h2>
+        <form method="post" action="{{ url_for('resend_confirmation') }}" class="mt-2">
+          <label for="resend-email" class="form-label">Email</label>
+          <div class="input-group">
+            <input id="resend-email" name="email" type="email" class="form-control" placeholder="Enter your email" required />
+            <button class="btn btn-outline-secondary" type="submit" style="font-weight: 500;">Resend</button>
+          </div>
+          <small class="text-muted">Use the same email you used to register.</small>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

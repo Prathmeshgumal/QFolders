@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h1 class="h4 mb-3">Email Confirmation</h1>
+         status area updated by JS after parsing Supabase hash parameters 
+        <div id="status" class="alert alert-info" role="alert">
+          Checking your confirmation link...
+        </div>
+        <pre id="debug" class="small text-muted" style="white-space: pre-wrap"></pre>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('login') }}" class="btn btn-primary">Go to Login</a>
+          <a href="{{ url_for('register') }}" class="btn btn-outline-secondary">Back to Register</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    try {
+      const hash = window.location.hash || "";
+      const params = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+      const error = params.get("error") || params.get("error_code");
+      const description = params.get("error_description");
+      const status = document.getElementById("status");
+      const debug = document.getElementById("debug");
+
+      const entries = [];
+      params.forEach((v, k) => entries.push(`${k}=${v}`));
+      debug.textContent = entries.length ? `Hash params:\n${entries.join("\n")}` : "No hash params found.";
+
+      if (error) {
+        status.className = "alert alert-danger";
+        status.textContent = description || "The confirmation link is invalid or has expired.";
+      } else {
+        status.className = "alert alert-success";
+        status.textContent = "Your email is confirmed. You can now sign in.";
+      }
+    } catch (e) {
+      const status = document.getElementById("status");
+      status.className = "alert alert-warning";
+      status.textContent = "We couldn't verify the link. Please try again.";
+    }
+  })();
+</script>
+{% endblock %}
