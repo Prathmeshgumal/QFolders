@@ -116,7 +116,10 @@ celerybeat.pid
 dmypy.json
 
 # .env
+# Environment variables
 .env
+.env.local
+.env.production
 
 #sql scripts
 001_init.sql
