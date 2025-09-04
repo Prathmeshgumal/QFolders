@@ -283,7 +283,12 @@ def dashboard():
             return redirect(url_for("dashboard"))
         try:
             # user_id is enforced by RLS, but we explicitly set it for clarity
-            resp = client.table("folders").insert({"user_id": user["id"], "name": name}).execute()
+            resp = client.table("folders").insert({
+                "user_id": user["id"], 
+                "name": name,
+                "last_accessed": "now()",
+                "last_updated": "now()"
+            }).execute()
             flash("Folder created.", "success")
             return redirect(url_for("dashboard"))
         except Exception as e:
@@ -292,7 +297,7 @@ def dashboard():
 
     # List folders for current user (RLS will scope results)
     try:
-        folders = client.table("folders").select("*").order("created_at", desc=True).execute().data
+        folders = client.table("folders").select("*").order("last_accessed", desc=True).execute().data
         
         # For each folder, get its questions with all fields including stars and completion
         for folder in folders:
@@ -301,7 +306,7 @@ def dashboard():
                     client.table("questions")
                     .select("*, star1, star2, star3, is_completed")
                     .eq("folder_id", folder["id"])
-                    .order("created_at", desc=True)
+                    .order("last_updated", desc=True)
                     .execute()
                     .data
                 )
@@ -360,6 +365,7 @@ def folder_detail(folder_id: str):
                 question_data["terminal_output"] = terminal_output
             
             # Insert question and get the ID
+            question_data["last_updated"] = "now()"
             result = client.table("questions").insert(question_data).execute()
             question_id = result.data[0]["id"]
             
@@ -405,6 +411,7 @@ def folder_detail(folder_id: str):
                         "notes": notes,
                         "links": links_list,
                         "code": code,
+                        "last_updated": "now()"
                     }
                     client.table("questions").insert(question_data).execute()
                     flash("Question added (terminal output not saved - column not available).", "warning")
@@ -420,6 +427,9 @@ def folder_detail(folder_id: str):
         folder = client.table("folders").select("*").eq("id", folder_id).single().execute().data
         if not folder:
             abort(404)
+        
+        # Update last_accessed timestamp for the folder
+        client.table("folders").update({"last_accessed": "now()"}).eq("id", folder_id).execute()
     except Exception:
         abort(404)
 
@@ -429,7 +439,7 @@ def folder_detail(folder_id: str):
             client.table("questions")
             .select("*")
             .eq("folder_id", folder_id)
-            .order("created_at", desc=True)
+            .order("last_updated", desc=True)
             .execute()
             .data
         )
@@ -528,7 +538,8 @@ def update_question(question_id: str):
             elif pdf_file and pdf_file.filename:
                 flash("Question updated, but only PDF files are allowed.", "warning")
         
-        # Update the question
+        # Update the question with last_updated timestamp
+        update_data["last_updated"] = "now()"
         client.table("questions").update(update_data).eq("id", question_id).execute()
         flash("Question updated successfully.", "success")
     except Exception as e:
@@ -541,6 +552,7 @@ def update_question(question_id: str):
                     "notes": notes,
                     "links": links_list,
                     "code": code,
+                    "last_updated": "now()"
                 }
                 client.table("questions").update(update_data).eq("id", question_id).execute()
                 flash("Question updated (terminal output not saved - column not available).", "warning")
@@ -709,6 +721,7 @@ def add_question_to_folder(folder_id: str):
             question_data["terminal_output"] = terminal_output
         
         # Insert question and get the ID
+        question_data["last_updated"] = "now()"
         result = client.table("questions").insert(question_data).execute()
         question_id = result.data[0]["id"]
         
@@ -751,6 +764,7 @@ def add_question_to_folder(folder_id: str):
                     "notes": notes,
                     "links": links_list,
                     "code": code,
+                    "last_updated": "now()"
                 }
                 client.table("questions").insert(question_data).execute()
                 flash("Question added (terminal output not saved - column not available).", "warning")
@@ -784,7 +798,8 @@ def autosave_checkbox():
         
         # Update the question's completion status
         client.table("questions").update({
-            "is_completed": is_checked
+            "is_completed": is_checked,
+            "last_updated": "now()"
         }).eq("id", question_id).execute()
         
         # Track contribution
@@ -812,7 +827,7 @@ def autosave_star():
         user = current_user()
         
         # Update the specific star field
-        update_data = {star_type: is_checked}
+        update_data = {star_type: is_checked, "last_updated": "now()"}
         client.table("questions").update(update_data).eq("id", question_id).execute()
         
         # Track contribution
@@ -842,9 +857,9 @@ def autosave_content():
         # Handle links field specially (convert from string to array)
         if field == 'links' and value:
             links_list = [line.strip() for line in value.splitlines() if line.strip()]
-            update_data = {field: links_list}
+            update_data = {field: links_list, "last_updated": "now()"}
         else:
-            update_data = {field: value if value else None}
+            update_data = {field: value if value else None, "last_updated": "now()"}
         
         client.table("questions").update(update_data).eq("id", question_id).execute()
         
