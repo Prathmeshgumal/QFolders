@@ -87,18 +87,59 @@ def track_contribution(user_id: str, client: Client):
             pass  # Don't break the main functionality
 
 
+def refresh_jwt_if_needed():
+    """Refresh JWT token if it's expired or about to expire"""
+    if "access_token" not in session or "refresh_token" not in session:
+        return False
+    
+    try:
+        client = get_supabase()
+        # Try to refresh the token using the refresh token
+        response = client.auth.refresh_session(session["refresh_token"])
+        
+        if response.session:
+            # Update session with new tokens
+            session["access_token"] = response.session.access_token
+            session["refresh_token"] = response.session.refresh_token
+            return True
+    except Exception as e:
+        print(f"JWT refresh failed: {e}")
+        # Clear invalid session data
+        session.pop("access_token", None)
+        session.pop("refresh_token", None)
+        session.pop("user", None)
+    
+    return False
+
+
 def login_required(view_fn):
     @wraps(view_fn)
     def wrapper(*args, **kwargs):
         if "access_token" not in session or "user" not in session:
             flash("Please log in to continue.", "warning")
             return redirect(url_for("login"))
+        
+        # Try to refresh JWT if needed before proceeding
+        if not refresh_jwt_if_needed():
+            flash("Your session has expired. Please log in again.", "warning")
+            return redirect(url_for("login"))
+        
         return view_fn(*args, **kwargs)
     return wrapper
 
 
 def current_user():
     return session.get("user")  # dict with id, email
+
+
+def handle_jwt_error(error_msg):
+    """Handle JWT-related errors consistently"""
+    if "JWT expired" in error_msg or "PGRST303" in error_msg:
+        flash("Your session has expired. Please log in again.", "warning")
+        return redirect(url_for("login"))
+    else:
+        flash(f"Error: {error_msg}", "danger")
+        return None
 
 
 def allowed_file(filename):
@@ -268,7 +309,11 @@ def dashboard():
             except Exception as e:
                 folder["questions"] = []
     except Exception as e:
-        flash(f"Failed to load folders: {str(e)}", "danger")
+        error_msg = str(e)
+        jwt_error_response = handle_jwt_error(error_msg)
+        if jwt_error_response:
+            return jwt_error_response
+        flash(f"Failed to load folders: {error_msg}", "danger")
         folders = []
 
     return render_template("dashboard.html", folders=folders)

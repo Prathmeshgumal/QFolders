@@ -789,7 +789,7 @@ function clearAllCheckboxes() {
   });
 }
 
-// Auto-save functionality
+// Auto-save functionality with JWT error handling
 function autoSaveCheckbox(questionId, isChecked) {
   fetch('/api/autosave/checkbox', {
     method: 'POST',
@@ -801,11 +801,18 @@ function autoSaveCheckbox(questionId, isChecked) {
       checked: isChecked
     })
   })
-  .then(response => response.json())
+  .then(response => {
+    if (response.status === 401) {
+      // JWT expired, redirect to login
+      window.location.href = '/login';
+      return;
+    }
+    return response.json();
+  })
   .then(data => {
-    if (data.success) {
+    if (data && data.success) {
       console.log('Checkbox auto-saved successfully');
-    } else {
+    } else if (data) {
       console.error('Auto-save failed:', data.error);
     }
   })
@@ -826,11 +833,18 @@ function autoSaveStar(questionId, starType, isChecked) {
       checked: isChecked
     })
   })
-  .then(response => response.json())
+  .then(response => {
+    if (response.status === 401) {
+      // JWT expired, redirect to login
+      window.location.href = '/login';
+      return;
+    }
+    return response.json();
+  })
   .then(data => {
-    if (data.success) {
+    if (data && data.success) {
       console.log('Star auto-saved successfully');
-    } else {
+    } else if (data) {
       console.error('Auto-save failed:', data.error);
     }
   })
@@ -877,11 +891,18 @@ document.addEventListener('DOMContentLoaded', function() {
 // Contribution Graph Functions
 function loadContributionGraph() {
   fetch('/api/contributions')
-    .then(response => response.json())
+    .then(response => {
+      if (response.status === 401) {
+        // JWT expired, redirect to login
+        window.location.href = '/login';
+        return;
+      }
+      return response.json();
+    })
     .then(data => {
-      if (data.success) {
+      if (data && data.success) {
         renderContributionGraph(data.data);
-      } else {
+      } else if (data) {
         console.error('Failed to load contributions:', data.error);
       }
     })
