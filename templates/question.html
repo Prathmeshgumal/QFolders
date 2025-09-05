@@ -120,7 +120,15 @@
                 <div style="width: 12px; height: 12px; background: #27ca3f; border-radius: 50%; margin-right: 16px;"></div>
                 <span style="color: #cccccc; font-size: 0.85rem; font-family: 'Segoe UI', sans-serif;">main.cpp</span>
               </div>
-              <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="copy-code-btn" onclick="copyCodeToClipboard()" title="Copy code" style="background: transparent; border: 1px solid #555; color: #888; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+                <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+              </div>
             </div>
             <div class="code-editor-content" style="position: relative; overflow-x: auto;">
               <div class="code-editor-lines" style="display: flex; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">
@@ -145,7 +153,15 @@
                 <div style="width: 12px; height: 12px; background: #27ca3f; border-radius: 50%; margin-right: 16px;"></div>
                 <span style="color: #cccccc; font-size: 0.85rem; font-family: 'Segoe UI', sans-serif;">main.cpp</span>
               </div>
-              <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="copy-code-btn" onclick="copyCodeToClipboard()" title="Copy code" style="background: transparent; border: 1px solid #555; color: #888; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; transition: all 0.2s ease;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+                <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
+              </div>
             </div>
             <div class="code-editor-content" style="position: relative; overflow-x: auto;">
               <div class="code-editor-lines" style="display: flex; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">
@@ -278,9 +294,129 @@ textarea:focus {
   outline: 2px solid #007bff !important;
   outline-offset: 2px;
 }
+
+/* Copy button styling */
+.copy-code-btn {
+  background: transparent !important;
+  border: 1px solid #555 !important;
+  color: #888 !important;
+  padding: 4px 6px !important;
+  border-radius: 4px !important;
+  font-size: 0.75rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.copy-code-btn:hover {
+  background: #555 !important;
+  color: #fff !important;
+  border-color: #777 !important;
+  transform: translateY(-1px);
+}
+
+.copy-code-btn:active {
+  transform: translateY(0);
+  background: #666 !important;
+}
 </style>
 
 <script>
+// Copy code to clipboard function
+function copyCodeToClipboard() {
+  const codeTextarea = document.querySelector('textarea[name="code"]');
+  if (!codeTextarea) {
+    console.error('Code textarea not found');
+    return;
+  }
+  
+  const codeContent = codeTextarea.value;
+  if (!codeContent.trim()) {
+    showCopyFeedback('No code to copy', 'warning');
+    return;
+  }
+  
+  // Use the modern clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(codeContent).then(() => {
+      showCopyFeedback('Code copied to clipboard!', 'success');
+    }).catch(err => {
+      console.error('Failed to copy: ', err);
+      fallbackCopyTextToClipboard(codeContent);
+    });
+  } else {
+    // Fallback for older browsers
+    fallbackCopyTextToClipboard(codeContent);
+  }
+}
+
+// Fallback copy function for older browsers
+function fallbackCopyTextToClipboard(text) {
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-999999px";
+  textArea.style.top = "-999999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  
+  try {
+    const successful = document.execCommand('copy');
+    if (successful) {
+      showCopyFeedback('Code copied to clipboard!', 'success');
+    } else {
+      showCopyFeedback('Failed to copy code', 'error');
+    }
+  } catch (err) {
+    console.error('Fallback copy failed: ', err);
+    showCopyFeedback('Failed to copy code', 'error');
+  }
+  
+  document.body.removeChild(textArea);
+}
+
+// Show copy feedback
+function showCopyFeedback(message, type) {
+  // Create or update feedback element
+  let feedback = document.getElementById('copyFeedback');
+  if (!feedback) {
+    feedback = document.createElement('div');
+    feedback.id = 'copyFeedback';
+    feedback.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      max-width: 300px;
+      word-wrap: break-word;
+    `;
+    document.body.appendChild(feedback);
+  }
+  
+  // Set color based on type
+  const colors = {
+    success: '#28a745',
+    warning: '#ffc107',
+    error: '#dc3545'
+  };
+  
+  feedback.style.background = colors[type] || colors.success;
+  feedback.style.color = type === 'warning' ? '#000' : '#fff';
+  feedback.textContent = message;
+  feedback.style.opacity = '1';
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    feedback.style.opacity = '0';
+  }, 3000);
+}
+
 function togglePDFViewer() {
   const viewer = document.getElementById('pdfViewer');
   const button = document.getElementById('viewerToggleBtn');
