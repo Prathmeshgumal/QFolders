@@ -660,6 +660,32 @@ def resend_confirmation():
     return redirect(url_for("login"))
 
 
+@app.route("/questions/<question_id>/delete", methods=["POST"])
+@login_required
+def delete_question(question_id: str):
+    user = current_user()
+    client = get_supabase(session.get("access_token"))
+    
+    try:
+        # First verify the question exists and belongs to the user
+        question = client.table("questions").select("*, pdf_file_path").eq("id", question_id).single().execute().data
+        if not question:
+            flash("Question not found.", "danger")
+            return redirect(url_for("dashboard"))
+        
+        # Delete associated PDF file if it exists
+        if question.get("pdf_file_path"):
+            delete_file_from_supabase(question["pdf_file_path"])
+        
+        # Delete the question
+        client.table("questions").delete().eq("id", question_id).execute()
+        flash("Question deleted successfully.", "success")
+    except Exception as e:
+        flash(f"Failed to delete question: {str(e)}", "danger")
+    
+    return redirect(url_for("dashboard"))
+
+
 @app.route("/folders/<folder_id>/delete", methods=["POST"])
 @login_required
 def delete_folder(folder_id: str):
