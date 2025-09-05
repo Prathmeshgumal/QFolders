@@ -134,8 +134,15 @@
               </div>
               <div style="color: #888; font-size: 0.8rem; font-family: 'Segoe UI', sans-serif;">C++</div>
             </div>
-            <div class="code-editor-content" style="padding: 16px; color: #888; font-style: italic; text-align: center; font-family: 'Segoe UI', sans-serif;">
-              No code snippet provided.
+            <div class="code-editor-content" style="position: relative; overflow-x: auto;">
+              <div class="code-editor-lines" style="display: flex; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">
+                <div class="line-numbers" style="background: #252526; color: #858585; padding: 16px 8px 16px 16px; border-right: 1px solid #333; user-select: none; min-width: 50px; text-align: right;">
+                  <div style="height: 1.5em;">1</div>
+                </div>
+                <div class="code-content" style="flex: 1; padding: 16px; color: #d4d4d4; background: #1e1e1e;">
+                  <textarea name="code" placeholder="Click here to add code..." style="margin: 0; width: 100%; height: 100%; background: transparent; border: none; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; letter-spacing: 0.5px; resize: none; outline: none; min-height: 350px;">{{ question['code'] or '' }}</textarea>
+                </div>
+              </div>
             </div>
           </div>
         {% endif %}
@@ -156,7 +163,7 @@
           </div>
           <div class="terminal-content">
             <div style="color: #00ff00; font-size: 0.9rem; margin-bottom: 8px;">$</div>
-            <textarea name="terminal_output" style="width: 100%; height: 100%; background: transparent; border: none; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; letter-spacing: 0.5px; resize: none; outline: none; min-height: 150px;">{{ question.get('terminal_output') or '' }}</textarea>
+            <textarea name="terminal_output" placeholder="Click here to add terminal output..." style="width: 100%; height: 100%; background: transparent; border: none; color: #d4d4d4; font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5; letter-spacing: 0.5px; resize: none; outline: none; min-height: 200px;">{{ question.get('terminal_output') or '' }}</textarea>
           </div>
         </div>
       </div>
@@ -233,6 +240,30 @@
   line-height: 1.5;
   letter-spacing: 0.5px;
   min-height: 200px;
+}
+
+/* Placeholder styling for better visibility */
+textarea::placeholder {
+  color: #666 !important;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Hover effects for empty sections */
+.code-editor-container:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+.terminal-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Focus styles for better UX */
+textarea:focus {
+  outline: 2px solid #007bff !important;
+  outline-offset: 2px;
 }
 </style>
 
