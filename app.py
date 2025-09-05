@@ -660,6 +660,41 @@ def resend_confirmation():
     return redirect(url_for("login"))
 
 
+@app.route("/questions/<question_id>/move", methods=["POST"])
+@login_required
+def move_question(question_id: str):
+    """Move a question to a different folder"""
+    try:
+        data = request.get_json()
+        new_folder_id = data.get('folder_id')
+        
+        if not new_folder_id:
+            return {"success": False, "error": "Folder ID required"}, 400
+        
+        client = get_supabase(session.get("access_token"))
+        user = current_user()
+        
+        # Verify the question exists and belongs to the user
+        question = client.table("questions").select("id, folder_id").eq("id", question_id).single().execute().data
+        if not question:
+            return {"success": False, "error": "Question not found"}, 404
+        
+        # Verify the new folder exists and belongs to the user
+        folder = client.table("folders").select("id").eq("id", new_folder_id).single().execute().data
+        if not folder:
+            return {"success": False, "error": "Folder not found"}, 404
+        
+        # Update the question's folder
+        client.table("questions").update({
+            "folder_id": new_folder_id,
+            "last_updated": "now()"
+        }).eq("id", question_id).execute()
+        
+        return {"success": True, "message": "Question moved successfully"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}, 500
+
+
 @app.route("/questions/<question_id>/delete", methods=["POST"])
 @login_required
 def delete_question(question_id: str):

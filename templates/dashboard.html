@@ -69,7 +69,9 @@
         {% if folders %}
           <div class="list-group">
             {% for f in folders %}
-              <div class="list-group-item folder-item">
+              <div class="list-group-item folder-item folder-drop-target" 
+                   data-folder-id="{{ f['id'] }}"
+                   data-folder-name="{{ f['name'] }}">
                 <div class="d-flex align-items-center mb-2">
                   <button class="btn btn-outline-secondary btn-sm me-2 dropdown-toggle" 
                           type="button" 
@@ -119,7 +121,11 @@
                     {% if f['questions'] %}
                       <div class="questions-list">
                         {% for q in f['questions'] %}
-                          <div class="question-item">
+                          <div class="question-item" 
+                               draggable="true" 
+                               data-question-id="{{ q['id'] }}"
+                               data-folder-id="{{ f['id'] }}"
+                               data-question-title="{{ q['title'] }}">
                             <div class="d-flex align-items-center justify-content-between">
                               <div class="d-flex align-items-center">
                                 <div class="form-check me-3">
@@ -610,6 +616,61 @@
   border: 4px solid transparent;
   border-top-color: rgba(0, 0, 0, 0.8);
 }
+
+/* Drag and Drop Styles - Optimized for Performance */
+.question-item {
+  cursor: grab;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  will-change: transform;
+}
+
+.question-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.question-item.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  cursor: grabbing;
+  transition: none; /* Disable transitions during drag for better performance */
+}
+
+.folder-drop-target {
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  border-radius: 8px;
+  will-change: background-color, border-color, transform;
+}
+
+.folder-drop-target.drag-over {
+  background-color: rgba(0, 123, 255, 0.1) !important;
+  border: 2px dashed #007bff !important;
+  transform: scale(1.02);
+}
+
+.folder-drop-target.drag-over .folder-name {
+  color: #007bff !important;
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+
+.drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  background: var(--netflix-gray);
+  border: 1px solid var(--netflix-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--netflix-white);
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: rotate(-5deg);
+  will-change: transform;
+}
 </style>
 
 <script>
@@ -893,6 +954,253 @@ function autoSaveStar(questionId, starType, isChecked) {
   });
 }
 
+// Drag and Drop Functions
+let draggedQuestion = null;
+let dragGhost = null;
+
+function initializeDragAndDrop() {
+  // Add drag event listeners to questions
+  document.querySelectorAll('.question-item').forEach(question => {
+    question.addEventListener('dragstart', handleDragStart);
+    question.addEventListener('dragend', handleDragEnd);
+  });
+  
+  // Add drop event listeners to folders
+  document.querySelectorAll('.folder-drop-target').forEach(folder => {
+    folder.addEventListener('dragover', handleDragOver);
+    folder.addEventListener('dragenter', handleDragEnter);
+    folder.addEventListener('dragleave', handleDragLeave);
+    folder.addEventListener('drop', handleDrop);
+  });
+}
+
+function handleDragStart(e) {
+  // Find the actual question item element (not a child element)
+  draggedQuestion = e.target.closest('.question-item');
+  
+  if (!draggedQuestion) {
+    console.error('Could not find question item element');
+    e.preventDefault();
+    return;
+  }
+  
+  // Debug: Log the dragged question element and its data attributes
+  console.log('Drag start - draggedQuestion:', draggedQuestion);
+  console.log('Drag start - data attributes:', {
+    questionId: draggedQuestion.dataset.questionId,
+    folderId: draggedQuestion.dataset.folderId,
+    questionTitle: draggedQuestion.dataset.questionTitle
+  });
+  
+  draggedQuestion.classList.add('dragging');
+  
+  // Create custom drag ghost with better performance
+  dragGhost = document.createElement('div');
+  dragGhost.className = 'drag-ghost';
+  dragGhost.textContent = draggedQuestion.dataset.questionTitle;
+  dragGhost.style.cssText = `
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    background: var(--netflix-gray);
+    border: 1px solid var(--netflix-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--netflix-white);
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: rotate(-5deg);
+    will-change: transform;
+  `;
+  document.body.appendChild(dragGhost);
+  
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/html', e.target.outerHTML);
+}
+
+function handleDragEnd(e) {
+  draggedQuestion.classList.remove('dragging');
+  if (dragGhost) {
+    document.body.removeChild(dragGhost);
+    dragGhost = null;
+  }
+  draggedQuestion = null;
+  
+  // Remove drag-over class from all folders
+  document.querySelectorAll('.folder-drop-target').forEach(folder => {
+    folder.classList.remove('drag-over');
+  });
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+  e.preventDefault();
+  e.target.closest('.folder-drop-target').classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  const folder = e.target.closest('.folder-drop-target');
+  if (folder && !folder.contains(e.relatedTarget)) {
+    folder.classList.remove('drag-over');
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const targetFolder = e.target.closest('.folder-drop-target');
+  const newFolderId = targetFolder.dataset.folderId;
+  const newFolderName = targetFolder.dataset.folderName;
+  const questionId = draggedQuestion.dataset.questionId;
+  const currentFolderId = draggedQuestion.dataset.folderId;
+  
+  // Debug logging
+  console.log('Drop event:', {
+    questionId,
+    currentFolderId,
+    newFolderId,
+    newFolderName,
+    targetFolder,
+    draggedQuestion: draggedQuestion,
+    allDataAttributes: {
+      questionId: draggedQuestion.dataset.questionId,
+      folderId: draggedQuestion.dataset.folderId,
+      questionTitle: draggedQuestion.dataset.questionTitle
+    }
+  });
+  
+  // Don't move to the same folder
+  if (newFolderId === currentFolderId) {
+    targetFolder.classList.remove('drag-over');
+    showNotification('Question is already in this folder', 'info');
+    return;
+  }
+  
+  // Move the question
+  moveQuestion(questionId, newFolderId, newFolderName, draggedQuestion);
+  targetFolder.classList.remove('drag-over');
+}
+
+function moveQuestion(questionId, newFolderId, newFolderName, questionElement) {
+  // Get the current folder ID from the element BEFORE making any changes
+  const currentFolderId = questionElement.dataset.folderId;
+  
+  // Debug logging
+  console.log('moveQuestion called with:', {
+    questionId,
+    newFolderId,
+    newFolderName,
+    currentFolderId,
+    questionElement
+  });
+  
+  // Validate that we have valid IDs
+  if (!questionId || !newFolderId || !currentFolderId) {
+    console.error('Invalid IDs:', { questionId, newFolderId, currentFolderId });
+    showNotification('Invalid move operation', 'error');
+    return;
+  }
+  
+  // Optimistic UI update - move immediately for instant feedback
+  questionElement.dataset.folderId = newFolderId;
+  
+  // Move the question element to the new folder immediately
+  const newFolder = document.querySelector(`[data-folder-id="${newFolderId}"]`);
+  const questionsList = newFolder.querySelector('.questions-list');
+  if (questionsList) {
+    questionsList.appendChild(questionElement);
+  }
+  
+  // Update folder counters immediately
+  updateFolderCounter(currentFolderId);
+  updateFolderCounter(newFolderId);
+  
+  // Show immediate success feedback
+  showNotification(`Question moved to "${newFolderName}"`, 'success');
+  
+  // Make API call in background (no await - fire and forget)
+  fetch(`/questions/${questionId}/move`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      folder_id: newFolderId
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (!data.success) {
+      // Only show error if API call failed - revert UI changes
+      console.error('Move failed:', data.error);
+      showNotification(`Move failed: ${data.error}`, 'error');
+      
+      // Revert the move
+      const originalFolder = document.querySelector(`[data-folder-id="${currentFolderId}"]`);
+      const originalQuestionsList = originalFolder.querySelector('.questions-list');
+      if (originalQuestionsList) {
+        originalQuestionsList.appendChild(questionElement);
+        questionElement.dataset.folderId = currentFolderId;
+        updateFolderCounter(currentFolderId);
+        updateFolderCounter(newFolderId);
+      }
+    }
+  })
+  .catch(error => {
+    console.error('Error moving question:', error);
+    showNotification('Move failed - please try again', 'error');
+    
+    // Revert the move
+    const originalFolder = document.querySelector(`[data-folder-id="${currentFolderId}"]`);
+    const originalQuestionsList = originalFolder.querySelector('.questions-list');
+    if (originalQuestionsList) {
+      originalQuestionsList.appendChild(questionElement);
+      questionElement.dataset.folderId = currentFolderId;
+      updateFolderCounter(currentFolderId);
+      updateFolderCounter(newFolderId);
+    }
+  });
+}
+
+function showNotification(message, type) {
+  // Create notification element
+  const notification = document.createElement('div');
+  let alertClass = 'alert-danger';
+  
+  if (type === 'success') {
+    alertClass = 'alert-success';
+  } else if (type === 'info') {
+    alertClass = 'alert-info';
+  } else if (type === 'warning') {
+    alertClass = 'alert-warning';
+  }
+  
+  notification.className = `alert ${alertClass} alert-dismissible fade show`;
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 300px;
+  `;
+  notification.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // Auto-remove after 3 seconds
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 3000);
+}
+
 // Add event listeners for auto-save
 document.addEventListener('DOMContentLoaded', function() {
   // Auto-save for question checkboxes
@@ -926,6 +1234,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Load contribution graph
   loadContributionGraph();
+  
+  // Initialize drag and drop
+  initializeDragAndDrop();
 });
 
 // Contribution Graph Functions
