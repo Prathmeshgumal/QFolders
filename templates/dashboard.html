@@ -71,7 +71,8 @@
             {% for f in folders %}
               <div class="list-group-item folder-item folder-drop-target" 
                    data-folder-id="{{ f['id'] }}"
-                   data-folder-name="{{ f['name'] }}">
+                   data-folder-name="{{ f['name'] }}"
+                   style="cursor: pointer;">
                 <div class="d-flex align-items-center mb-2">
                   <button class="btn btn-outline-secondary btn-sm me-2 dropdown-toggle" 
                           type="button" 
@@ -108,14 +109,7 @@
                   <div class="folder-content">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <h6 class="mb-0" style="color: var(--netflix-light-gray);">Questions ({{ f['questions']|length }})</h6>
-                      <button type="button" class="btn btn-success btn-sm" 
-                              onclick="openAddQuestionModal('{{ f['id'] }}', '{{ f['name'] }}')">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
-                          <line x1="12" y1="5" x2="12" y2="19"></line>
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Add Question
-                      </button>
+                      <small class="text-muted" style="font-size: 0.8rem;">Double-click folder to add question</small>
                     </div>
                     
                     {% if f['questions'] %}
@@ -402,12 +396,35 @@
   border-radius: 8px !important;
   margin-bottom: 8px !important;
   transition: all 0.3s ease !important;
+  position: relative !important;
 }
 
 .folder-item:hover {
   background-color: var(--netflix-gray) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.folder-item::after {
+  content: 'Double-click to add question' !important;
+  position: absolute !important;
+  top: 50% !important;
+  right: 20px !important;
+  transform: translateY(-50%) !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: var(--netflix-white) !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  font-size: 0.75rem !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease !important;
+  white-space: nowrap !important;
+  z-index: 10 !important;
+}
+
+.folder-item:hover::after {
+  opacity: 1 !important;
 }
 
 .folder-name {
@@ -705,6 +722,20 @@ function openAddQuestionModal(folderId, folderName) {
   var addQuestionModal = new bootstrap.Modal(document.getElementById('addQuestionModal'));
   addQuestionModal.show();
 }
+
+// Handle double-click on folder items
+document.addEventListener('DOMContentLoaded', function() {
+  const folderItems = document.querySelectorAll('.folder-item');
+  folderItems.forEach(function(folderItem) {
+    folderItem.addEventListener('dblclick', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const folderId = this.getAttribute('data-folder-id');
+      const folderName = this.getAttribute('data-folder-name');
+      openAddQuestionModal(folderId, folderName);
+    });
+  });
+});
 
 // Checkbox functionality
 document.addEventListener('DOMContentLoaded', function() {
