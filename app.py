@@ -833,8 +833,9 @@ def autosave_checkbox():
             "last_updated": "now()"
         }).eq("id", question_id).execute()
         
-        # Track contribution
-        track_contribution(user["id"], client)
+        # Track contribution only when question is completed (checked)
+        if is_checked:
+            track_contribution(user["id"], client)
         
         return {"success": True}
     except Exception as e:
@@ -861,8 +862,9 @@ def autosave_star():
         update_data = {star_type: is_checked, "last_updated": "now()"}
         client.table("questions").update(update_data).eq("id", question_id).execute()
         
-        # Track contribution
-        track_contribution(user["id"], client)
+        # Track contribution only when star is checked
+        if is_checked:
+            track_contribution(user["id"], client)
         
         return {"success": True}
     except Exception as e:
