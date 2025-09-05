@@ -725,6 +725,9 @@ def add_question_to_folder(folder_id: str):
         result = client.table("questions").insert(question_data).execute()
         question_id = result.data[0]["id"]
         
+        # Track contribution for creating a question
+        track_contribution(user["id"], client)
+        
         # Handle PDF file upload if provided
         if 'pdf_file' in request.files:
             pdf_file = request.files['pdf_file']
@@ -767,6 +770,8 @@ def add_question_to_folder(folder_id: str):
                     "last_updated": "now()"
                 }
                 client.table("questions").insert(question_data).execute()
+                # Track contribution for creating a question
+                track_contribution(user["id"], client)
                 flash("Question added (terminal output not saved - column not available).", "warning")
             except Exception as e2:
                 flash(f"Failed to add question: {str(e2)}", "danger")
